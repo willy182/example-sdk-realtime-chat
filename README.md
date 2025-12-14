@@ -4,8 +4,8 @@ This repository demonstrates a **multi-module** layout for the realtime SDK.
 
 Modules:
 - `github.com/willy182/example-sdk-realtime-chat` - the SDK library (primary module)
-- `github.com/your/repo/examples/simple` - a small example using the SDK
+- `github.com/willy182/example-sdk-realtime-chat/examples/simple` - a small example using the SDK
 
 Use the `chat` module from the `examples` module or import it into your own project.
 
-Note: Replace module paths `github.com/your/repo` with your actual repository path before `go get` or `go build`.
+Note: Replace module paths `github.com/willy182/example-sdk-realtime-chat` with your actual repository path before `go get` or `go build`.

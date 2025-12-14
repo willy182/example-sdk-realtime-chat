@@ -3,70 +3,58 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/willy182/example-sdk-realtime-chat/chat"
 )
 
 func main() {
-	// Build config with builder
 	cfg, err := chat.NewConfigBuilder().
-		WithAPIKey("demo-key").
+		WithAPIKey("demo").
 		WithEndpoint("mock://").
-		WithDialTimeout(2 * time.Second).
+		WithDialTimeout(10 * time.Second).
+		WithRetry(&chat.SimpleExponentialBackoff{
+			MaxRetries: 3,
+			BaseDelay:  1 * time.Second,
+		}).
 		Build()
 	if err != nil {
-		panic(err)
+		log.Fatalf("config error: %v", err)
 	}
 
-	// create transport via factory
 	tpt, err := chat.NewTransport(chat.TransportMock, cfg)
 	if err != nil {
-		panic(err)
+		log.Fatalf("transport error: %v", err)
 	}
-
-	// optional retry
-	cfg.Retry = &chat.SimpleExponentialBackoff{MaxRetries: 2, BaseDelay: 20 * time.Millisecond}
 
 	client, err := chat.NewClient(cfg, tpt)
 	if err != nil {
-		panic(err)
+		log.Fatalf("client error: %v", err)
 	}
 
-	// Ensure client is closed on exit
-	defer func() {
-		_ = client.Close()
-	}()
-
-	ctx := context.Background()
-	if err := client.Connect(ctx); err != nil {
-		panic(err)
+	if err := client.Connect(context.Background()); err != nil {
+		log.Fatalf("connect error: %v", err)
 	}
 
-	// subscribe and get id+channel
 	id, sub := client.Subscribe()
 
-	// send message
-	if err := client.SendMessage(ctx, "general", "Hello from example"); err != nil {
-		client.Unsubscribe(id)
-		panic(err)
+	// HANDLE SendMessage error
+	if err := client.SendMessage(context.Background(), "general", "Hello from example"); err != nil {
+		log.Fatalf("send message error: %v", err)
 	}
 
-	// Read a single message (or timeout) synchronously — no extra goroutine
 	select {
-	case m, ok := <-sub:
-		if !ok {
-			fmt.Println("subscription channel closed")
-		} else {
-			fmt.Printf("received: %+v\n", m)
-		}
+	case m := <-sub:
+		fmt.Println("received:", m)
 	case <-time.After(1 * time.Second):
-		fmt.Println("timeout waiting for message")
+		log.Println("timeout waiting for message")
 	}
 
-	// Unsubscribe before closing the client to avoid receiver goroutines stuck
 	client.Unsubscribe(id)
+	if err := client.Close(); err != nil {
+		log.Printf("close error: %v", err)
+	}
 
-	// close will be done by defer
-	fmt.Println("shutdown complete")
+	log.Println("shutdown complete")
 }
